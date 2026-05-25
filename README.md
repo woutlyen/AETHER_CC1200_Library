@@ -60,16 +60,21 @@ A comprehensive HAL-based driver library for the **CC1200 sub-GHz RF transceiver
 
 ### Initialization Functions (Mandatory)
 
-- `CC1200_SetSPIHandle(SPI_HandleTypeDef *hspi, GPIO_TypeDef *CSPort, uint32_t CSPin)` - Configure SPI interface and chip select
-- `CC1200_SetUserMISOPins(GPIO_TypeDef *miso_port, uint32_t miso_pin)` - Set MISO pin used for monitoring the state of the CC1200 inside the library
+- `CC1200_SetSPIHandle(SPI_HandleTypeDef *hspi, GPIO_TypeDef *CSPort, uint32_t CSPin, GPIO_TypeDef *miso_port, uint32_t miso_pin, uint32_t spi_rxtx_cplt_flg)` - Configure SPI interface, chip select, MISO pin for state monitoring, and SPI completion flag
 - `CC1200_Init()` - Initialize CC1200 chip
+
+### Interrupt Configuration Functions
+
+- `CC1200_SetAllInterruptFlags(uint32_t pkt_sync_rxtx_re_flg, uint32_t pkt_sync_rxtx_fe_flg, uint32_t rx_fifo_thr_re_flg, uint32_t tx_fifo_thr_fe_flg)` - Configure all interrupt flags for both RX and TX operations
+- `CC1200_SetRXInterruptFlags(uint32_t pkt_sync_rxtx_re_flg, uint32_t pkt_sync_rxtx_fe_flg, uint32_t rx_fifo_thr_re_flg)` - Configure interrupt flags for RX-only operation
+- `CC1200_SetTXInterruptFlags(uint32_t pkt_sync_rxtx_fe_flg, uint32_t tx_fifo_thr_fe_flg)` - Configure interrupt flags for TX-only operation
 
 ### Communication Functions
 
 - `CC1200_CommandStrobe(uint8_t strobe)` - Send a command strobe (RESET, RX, TX, IDLE, etc.)
 - `CC1200_TransmitPacket(uint8_t *data, uint8_t length)` - Transmit a packet
 - `CC1200_ReceiveHeader(uint8_t *buffer)` - Read packet header
-- `CC1200_ReceivePayload(uint8_t *buffer, uint8_t length)` - Read packet payload
+- `CC1200_ReceivePayload(uint8_t *buffer, uint8_t length)` - Read packet payload and return payload length
 
 ### Status Functions
 

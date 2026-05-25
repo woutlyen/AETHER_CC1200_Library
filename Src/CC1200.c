@@ -30,8 +30,16 @@ SPI_HandleTypeDef *hspi;
 GPIO_TypeDef *CSPort;
 uint32_t CSPin;
 
+uint32_t SPI_RXTX_CPLT_FLG;     // Flag to indicate that the SPI transmission/reception is complete, which can be set in the HAL_SPI_TxRxCpltCallback function
+
 GPIO_TypeDef *UserMisoPort;
 uint32_t UserMisoPin;
+
+uint32_t PKT_SYNC_RXTX_RE_FLG;  // Rising Edge PKT_SYNC_RXTX Interrupt = SYNC word has been received (start of packet)
+uint32_t PKT_SYNC_RXTX_FE_FLG;  // Falling Edge PKT_SYNC_RXTX Interrupt = End of packet has been transmitted (in TX mode) or received (in RX mode)
+uint32_t RX_FIFO_THR_RE_FLG;    // Rising Edge RX FIFO Threshold Interrupt = The number of bytes in the RX FIFO has reached the threshold set in the RX.FIFO_THR register
+uint32_t TX_FIFO_THR_FE_FLG;    // Falling Edge TX FIFO Threshold Interrupt = The number of bytes in the TX FIFO has drained below the threshold set in the TX.FIFO_THR register
+
 
 uint8_t current_state = 0;
 
@@ -61,23 +69,57 @@ uint8_t CC1200_GetRXFIFOLength(void);
   * @param  hspi_handle: Pointer to the SPI handle
   * @param  cs_port: Pointer to the GPIO port for the chip select pin
   * @param  cs_pin: The chip select pin
+  * @param  miso_port: Pointer to the GPIO port for the MISO pin
+  * @param  miso_pin: The MISO pin
+  * @param  spi_rxtx_cplt_flg: The flag indicating SPI transmission/reception completion
   * @retval None
   */
-void CC1200_SetSPIHandle(SPI_HandleTypeDef *hspi_handle, GPIO_TypeDef *cs_port, uint32_t cs_pin) {
+void CC1200_SetSPIHandle(SPI_HandleTypeDef *hspi_handle, GPIO_TypeDef *cs_port, uint32_t cs_pin, GPIO_TypeDef *miso_port, uint32_t miso_pin, uint32_t spi_rxtx_cplt_flg) {
     hspi = hspi_handle;
     CSPort = cs_port;
     CSPin = cs_pin;
+    UserMisoPort = miso_port;
+    UserMisoPin = miso_pin;
+    SPI_RXTX_CPLT_FLG = spi_rxtx_cplt_flg;
 }
 
 /**
-  * @brief  Sets the GPIO pins for the User MISO line
-  * @param  miso_port: Pointer to the GPIO port for the MISO pin
-  * @param  miso_pin: The MISO pin
+  * @brief  Sets all interrupt flags for the CC1200
+  * @param  pkt_sync_rxtx_re_flg: The rising edge interrupt flag for PKT_SYNC_RXTX
+  * @param  pkt_sync_rxtx_fe_flg: The falling edge interrupt flag for PKT_SYNC_RXTX
+  * @param  rx_fifo_thr_re_flg: The rising edge interrupt flag for RX FIFO threshold
+  * @param  tx_fifo_thr_fe_flg: The falling edge interrupt flag for TX FIFO threshold
   * @retval None
   */
-void CC1200_SetUserMISOPins(GPIO_TypeDef *miso_port, uint32_t miso_pin) {
-    UserMisoPort = miso_port;
-    UserMisoPin = miso_pin;
+void CC1200_SetAllInterruptFlags(uint32_t pkt_sync_rxtx_re_flg, uint32_t pkt_sync_rxtx_fe_flg, uint32_t rx_fifo_thr_re_flg, uint32_t tx_fifo_thr_fe_flg) {
+    PKT_SYNC_RXTX_RE_FLG = pkt_sync_rxtx_re_flg;
+    PKT_SYNC_RXTX_FE_FLG = pkt_sync_rxtx_fe_flg;
+    RX_FIFO_THR_RE_FLG = rx_fifo_thr_re_flg;
+    TX_FIFO_THR_FE_FLG = tx_fifo_thr_fe_flg;
+}
+
+/**
+  * @brief  Sets the interrupt flags for the RX state of the CC1200 (When only using the CC1200 for receiving packets)
+  * @param  pkt_sync_rxtx_re_flg: The rising edge interrupt flag for PKT_SYNC_RXTX
+  * @param  pkt_sync_rxtx_fe_flg: The falling edge interrupt flag for PKT_SYNC_RXTX
+  * @param  rx_fifo_thr_re_flg: The rising edge interrupt flag for RX FIFO threshold
+  * @retval None
+  */
+void CC1200_SetRXInterruptFlags(uint32_t pkt_sync_rxtx_re_flg, uint32_t pkt_sync_rxtx_fe_flg, uint32_t rx_fifo_thr_re_flg) {
+    PKT_SYNC_RXTX_RE_FLG = pkt_sync_rxtx_re_flg;
+    PKT_SYNC_RXTX_FE_FLG = pkt_sync_rxtx_fe_flg;
+    RX_FIFO_THR_RE_FLG = rx_fifo_thr_re_flg;
+}
+
+/**
+  * @brief  Sets the interrupt flags for the TX state of the CC1200 (When only using the CC1200 for transmitting packets)
+  * @param  pkt_sync_rxtx_fe_flg: The falling edge interrupt flag for PKT_SYNC_RXTX
+  * @param  tx_fifo_thr_fe_flg: The falling edge interrupt flag for TX FIFO threshold
+  * @retval None
+  */
+void CC1200_SetTXInterruptFlags(uint32_t pkt_sync_rxtx_fe_flg, uint32_t tx_fifo_thr_fe_flg) {
+    PKT_SYNC_RXTX_FE_FLG = pkt_sync_rxtx_fe_flg;
+    TX_FIFO_THR_FE_FLG = tx_fifo_thr_fe_flg;
 }
 
 /**
@@ -238,13 +280,13 @@ try_again:
             }
             
             if (amount_transmitted < amount_to_transmit) {
-                // Wait for flag from GPIO callback indicating that the RF module is ready to transmit the next part of the packet if needed (Flag 0x00000004U)
-                osThreadFlagsWait(0x00000004U, osFlagsWaitAny, osWaitForever);
+                // Wait for flag from GPIO callback indicating that the RF module is ready to transmit the next part of the packet if needed (TX_FIFO_THR_FE_FLG)
+                osThreadFlagsWait(TX_FIFO_THR_FE_FLG, osFlagsWaitAny, osWaitForever);
             }
 
         } else {
-            // Wait for flag from GPIO callback indicating that the RF module is ready to transmit the next part of the packet if needed (Flag 0x00000004U)
-            osThreadFlagsWait(0x00000004U, osFlagsWaitAny, osWaitForever);
+            // Wait for flag from GPIO callback indicating that the RF module is ready to transmit the next part of the packet if needed (TX_FIFO_THR_FE_FLG)
+            osThreadFlagsWait(TX_FIFO_THR_FE_FLG, osFlagsWaitAny, osWaitForever);
         }
     }
 }
@@ -256,10 +298,10 @@ try_again:
 void CC1200_ReceiveHeader(uint8_t *buffer) {
  
 retry_RX:
-
-    // Wait until we receive a flag from the GPIO callback indicating that the PKT_SYNC_RXTX pin has changed state to HIGH, which indicates that the header of the packet in the CC1200 RXFIFO is ready to be read (Flag 0x00000040U)
-    osThreadFlagsClear(0x00000020U | 0x00000040U | 0x00000080U); // Clear flags in case they were set from a previous packet reception
-    osThreadFlagsWait(0x00000040U, osFlagsWaitAny, osWaitForever);
+    // Clear flags in case they were set from a previous packet reception
+    osThreadFlagsClear(RX_FIFO_THR_RE_FLG | PKT_SYNC_RXTX_RE_FLG | PKT_SYNC_RXTX_FE_FLG);
+    // Wait until we receive a flag from the GPIO callback indicating that the PKT_SYNC_RXTX pin has changed state to HIGH, which indicates that the header of the packet in the CC1200 RXFIFO is ready to be read (Flag PKT_SYNC_RXTX_RE_FLG)
+    osThreadFlagsWait(PKT_SYNC_RXTX_RE_FLG, osFlagsWaitAny, osWaitForever);
 
     for(uint8_t i = 0; i < 10; i++) {
         if (i == 9) {
@@ -319,10 +361,10 @@ uint8_t CC1200_ReceivePayload(uint8_t *buffer, uint8_t length) {
 
     while (bytes_received < length) {
 
-        // Wait until we receive a flag from the GPIO callback indicating that the RX FIFO threshold has been reached or the end of the packet is ready to be read from the CC1200 RXFIFO (Flag 0x00000020U or 0x00000080U)
+        // Wait until we receive a flag from the GPIO callback indicating that the RX FIFO threshold has been reached or the end of the packet is ready to be read from the CC1200 RXFIFO (Flag RX_FIFO_THR_RE_FLG or PKT_SYNC_RXTX_FE_FLG)
         if (length - bytes_received > 10) { //TODO: rand geval
-            uint32_t flags = osThreadFlagsWait(0x00000020U | 0x00000080U, osFlagsWaitAny, osWaitForever);
-            if ((flags & 0x00000080U) == 0x00000080U) {
+            uint32_t flags = osThreadFlagsWait(RX_FIFO_THR_RE_FLG | PKT_SYNC_RXTX_FE_FLG, osFlagsWaitAny, osWaitForever);
+            if ((flags & PKT_SYNC_RXTX_FE_FLG) == PKT_SYNC_RXTX_FE_FLG) {
                 // Put CC1200 in RX Mode
                 CC1200_CommandStrobe(CC1200_SIDLE);
                 CC1200_CommandStrobe(CC1200_SRX);

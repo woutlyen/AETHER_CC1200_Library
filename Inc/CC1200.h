@@ -90,8 +90,11 @@ extern "C" {
 #define CC1200_SNOP             0x3D    // No operation. May be used to get access to the chip status byte
 
 /* Function prototypes */
-void CC1200_SetSPIHandle(SPI_HandleTypeDef *hspi, GPIO_TypeDef *CSPort, uint32_t CSPin);
-void CC1200_SetUserMISOPins(GPIO_TypeDef *miso_port, uint32_t miso_pin);
+void CC1200_SetSPIHandle(SPI_HandleTypeDef *hspi, GPIO_TypeDef *CSPort, uint32_t CSPin, GPIO_TypeDef *miso_port, uint32_t miso_pin, uint32_t spi_rxtx_cplt_flg);
+
+void CC1200_SetAllInterruptFlags(uint32_t pkt_sync_rxtx_re_flg, uint32_t pkt_sync_rxtx_fe_flg, uint32_t rx_fifo_thr_re_flg, uint32_t tx_fifo_thr_fe_flg);
+void CC1200_SetRXInterruptFlags(uint32_t pkt_sync_rxtx_re_flg, uint32_t pkt_sync_rxtx_fe_flg, uint32_t rx_fifo_thr_re_flg);
+void CC1200_SetTXInterruptFlags(uint32_t pkt_sync_rxtx_fe_flg, uint32_t tx_fifo_thr_fe_flg);
 
 void CC1200_Init(void);
 
