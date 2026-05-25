@@ -28,6 +28,7 @@ extern "C" {
 
 #include "cmsis_os2.h"
 
+#include <stdbool.h>
 
 /* Chip Status Byte */
 #define CC1200_STATUS_CHIP_RDY_Pos    (7U)
@@ -75,6 +76,7 @@ void CC1200_Init(void);
 void CC1200_CommandStrobe(uint8_t strobe);
 
 void CC1200_TransmitPacket(uint8_t *data, uint8_t length);
+bool CC1200_ReceivePacket(uint8_t *currentBuffer, uint16_t spaceLeft, uint8_t *nextBuffer);
 
 void CC1200_ReceiveHeader(uint8_t *buffer);
 uint8_t CC1200_ReceivePayload(uint8_t *buffer, uint8_t length);

@@ -51,6 +51,9 @@ uint8_t emptyBuffer[128] = {0}; // Buffer filled with zeros that can be used for
 
 void CC1200_Reset(void);
 
+uint8_t CC1200_ReceivePayloadLength(void);
+bool CC1200_ReceivePayload2(uint8_t *buffer, uint8_t length);
+
 void CC1200_ReadAllRegisters(void);
 
 void CC1200_WriteRegister(uint16_t addr, uint8_t value);
@@ -293,6 +296,43 @@ try_again:
     }
 }
 
+/** @brief Receive a packet from the CC1200 RX FIFO
+  * @param currentBuffer Pointer to the buffer where the packet will be stored
+  * @param spaceLeft Available space in the current buffer
+  * @param nextBuffer Pointer to the next buffer (in case the current buffer is too small)
+  * @retval True if the packet was stored in the current buffer, false if it was stored in the next buffer
+  */
+bool CC1200_ReceivePacket(uint8_t *currentBuffer, uint16_t spaceLeft, uint8_t *nextBuffer){
+
+try_again:
+
+    uint8_t length = CC1200_ReceivePayloadLength();
+
+    if (length + 2 > spaceLeft) {
+        // Not enough space left in the current buffer to store the whole packet, so we will use the next buffer to store this packet instead. 
+        nextBuffer[0] = length; // Store the length byte in the next buffer
+
+        // We can now receive the payload of the packet directly into the next buffer, since we know that there is enough space in the next buffer to store the whole packet
+        if(!CC1200_ReceivePayload2(nextBuffer + 1, length + 1)){ // We can pass length + 1 to also receive the appended RSSI and CRC bytes from the CC1200, which can be useful for debugging and testing purposes (only + 1 because the length byte is already stored in the next buffer)
+            goto try_again; // If we failed to receive the payload, we can try again to receive a new packet (this one will be lost, but at least we can continue receiving new packets instead of getting stuck on this one)
+        }
+
+        // We can return false to indicate that the packet was not stored in the current buffer, and the caller should check the next buffer for the received packet instead.
+        return false;
+    } else {
+        // We have enough space left in the current buffer to store the whole packet, so we can receive it directly into the current buffer.
+        currentBuffer[0] = length; // Store the length byte in the current buffer
+
+        // We can now receive the payload of the packet directly into the current buffer, since we know that there is enough space in the current buffer to store the whole packet
+        if(!CC1200_ReceivePayload2(currentBuffer + 1, length + 1)){ // We can pass length + 1 to also receive the appended RSSI and CRC bytes from the CC1200, which can be useful for debugging and testing purposes (only + 1 because the length byte is already stored in the current buffer)
+            goto try_again; // If we failed to receive the payload, we can try again to receive a new packet (this one will be lost, but at least we can continue receiving new packets instead of getting stuck on this one)
+        }
+
+        // We can return true to indicate that the packet was stored in the current buffer, and the caller can check the current buffer for the received packet.
+        return true;
+    }
+}
+
 /** @brief Receive the header of a packet from the CC1200 RX FIFO
   * @param buffer Pointer to the buffer where the header will be stored
   * @retval None
@@ -442,6 +482,119 @@ void CC1200_Reset(void) {
 
     // Set NSS pin high to end the reset sequence
     HAL_GPIO_WritePin(CSPort, CSPin, GPIO_PIN_SET);
+}
+
+/** 
+  * @brief Receive the length of the next packet from the CC1200 RX FIFO
+  * @retval The length of the next packet
+  */
+uint8_t CC1200_ReceivePayloadLength(void){
+
+retry_RX:
+
+    // Put CC1200 in RX Mode
+    CC1200_CommandStrobe(CC1200_SIDLE);
+    CC1200_CommandStrobe(CC1200_SFRX);
+    CC1200_CommandStrobe(CC1200_SRX);
+
+    // Clear flags in case they were set from a previous packet reception
+    osThreadFlagsClear(RX_FIFO_THR_RE_FLG | PKT_SYNC_RXTX_RE_FLG | PKT_SYNC_RXTX_FE_FLG);
+
+    // Wait until we receive a flag from the GPIO callback indicating that the PKT_SYNC_RXTX pin has changed state to HIGH, which indicates that the header of the packet in the CC1200 RXFIFO is ready to be read (Flag PKT_SYNC_RXTX_RE_FLG)
+    osThreadFlagsWait(PKT_SYNC_RXTX_RE_FLG, osFlagsWaitAny, osWaitForever);
+
+    for(uint8_t i = 0; i <= 10; i++) {
+        if (i == 10) {
+            // If after waiting for a while we still don't have at least 2 bytes in the RX FIFO, then we can assume that something went wrong and we can discard this packet and wait for the next one  
+            goto retry_RX; // We can goto begin of function and wait for the next packet to be received
+         } else if (CC1200_GetRXFIFOLength() >= 2) {
+                break; // We have at least 2 bytes in the RX FIFO, which means we can read the two length bytes of the packet, so we can break out of this loop and continue with processing this packet
+        }
+    }
+
+    // Receive header (Variable Length of CC1200 packet + Length of camera/sensor packet (should be the same)) of the packet in the CC1200 RXFIFO
+    uint8_t cmd, ret;
+    cmd = CC1200_BURST_READ | CC1200_RXFIFO; // Burst read command for RX FIFO
+
+    HAL_GPIO_WritePin(CSPort, CSPin, GPIO_PIN_RESET);  // Reset NSS pin to start the transaction
+
+    while (HAL_GPIO_ReadPin(UserMisoPort, UserMisoPin) == GPIO_PIN_SET);
+
+    HAL_SPI_TransmitReceive(hspi, &cmd, &ret, 1, HAL_MAX_DELAY);
+
+    if ((ret & CC1200_STATUS_STATE_Msk) == CC1200_STATUS_STATE_RXFIFO_ERR) {
+        HAL_GPIO_WritePin(CSPort, CSPin, GPIO_PIN_SET);  // Set NSS high to end the transaction
+        goto retry_RX; // We can goto begin of function and wait for the next packet to be received
+    }
+
+    uint8_t buffer[2];
+
+    HAL_SPI_TransmitReceive(hspi, &emptyBuffer[0], &buffer[0], 2, HAL_MAX_DELAY); // Read the header bytes
+
+    HAL_GPIO_WritePin(CSPort, CSPin, GPIO_PIN_SET);  // Set NSS pin to start the transaction
+
+    if ((buffer[0] < 6) | (buffer[0] > 254) | (buffer[1] < 6) | (buffer[1] > 254) | (buffer[0] != buffer[1])) {
+        // If the length bytes in the header are not valid, or not equal, then we can discard this packet and wait for the next one
+        goto retry_RX; // We can goto begin of function and wait for the next packet to be received
+    }
+
+    return buffer[0]; // We can return the length of the payload, which is indicated in the first and second byte of the header
+}
+
+/** 
+  * @brief Receive the payload of the next packet from the CC1200 RX FIFO
+  * @param buffer: Pointer to the buffer where the payload will be stored
+  * @param length: Length of the payload to receive
+  * @retval true if the payload was received successfully, false otherwise
+  */
+bool CC1200_ReceivePayload2(uint8_t *buffer, uint8_t length){
+
+    uint8_t bytes_received = 0;
+
+    while (bytes_received < length) {
+
+        // Wait until we receive a flag from the GPIO callback indicating that the RX FIFO threshold has been reached or the end of the packet is ready to be read from the CC1200 RXFIFO (Flag RX_FIFO_THR_RE_FLG or PKT_SYNC_RXTX_FE_FLG)
+        if (length - bytes_received > 10) { //TODO: Fix edge case issue
+            osThreadFlagsWait(RX_FIFO_THR_RE_FLG | PKT_SYNC_RXTX_FE_FLG, osFlagsWaitAny, osWaitForever);
+        }
+
+        // First get the number of bytes available in the RX FIFO
+        uint8_t num_rx_bytes = CC1200_GetRXFIFOLength();
+
+        if (num_rx_bytes != 0) {
+            uint8_t cmd, ret;
+            cmd = CC1200_BURST_READ | CC1200_RXFIFO; // Burst read command for RX FIFO
+
+            HAL_GPIO_WritePin(CSPort, CSPin, GPIO_PIN_RESET);  // Reset NSS pin to start the transaction
+
+            while (HAL_GPIO_ReadPin(UserMisoPort, UserMisoPin) == GPIO_PIN_SET);
+
+            HAL_SPI_TransmitReceive(hspi, &cmd, &ret, 1, HAL_MAX_DELAY);
+
+            if ((ret & CC1200_STATUS_STATE_Msk) == CC1200_STATUS_STATE_RXFIFO_ERR) {
+                HAL_GPIO_WritePin(CSPort, CSPin, GPIO_PIN_SET);  // Set NSS high to end the transaction
+
+                return false; // We can return false to indicate that we failed to receive the payload
+            }
+
+            HAL_SPI_TransmitReceive_DMA(hspi, &emptyBuffer[0], buffer + bytes_received, num_rx_bytes);
+
+            // Wait until HAL_SPI_TxRxCpltCallback send flag that the DMA transfer is completed    (Flag SPI_RXTX_CPLT_FLG)
+            osThreadFlagsWait(SPI_RXTX_CPLT_FLG, osFlagsWaitAny, osWaitForever);
+
+            HAL_GPIO_WritePin(CSPort, CSPin, GPIO_PIN_SET);  // Set NSS high to end the transaction
+
+            bytes_received += num_rx_bytes;
+        }
+    }
+
+    // Check for CRC bit in the last byte of the payload, which is set by the CC1200 if the CRC check of the received packet is correct
+    if ((buffer[length - 1] & 0x80) != 0x80) {        
+        // If the CRC bit is not set, then we can discard this packet and return an error
+        return false; // We can return false to indicate that we failed to receive the payload due to a CRC error
+    }
+
+    return true; // We can return true to indicate that we successfully received the full payload
 }
 
 /**
