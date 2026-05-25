@@ -17,9 +17,6 @@
 /* Includes ------------------------------------------------------------------*/
 #include "CC1200.h"
 #include "CC1200_REG_DEF.h"
-#include "cmsis_os2.h"
-#include "stm32f7xx_hal.h"
-#include "cmsis_os.h"
 #include <stdint.h>
 
 /* Private typedef -----------------------------------------------------------*/

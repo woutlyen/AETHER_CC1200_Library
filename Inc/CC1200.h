@@ -23,6 +23,7 @@ extern "C" {
 #endif
 
 #include "stm32f7xx_hal.h"
+#include "cmsis_os2.h"
 
 #include "CC1200_REG.h"
 #include "CC1200_REG_DEF.h"
