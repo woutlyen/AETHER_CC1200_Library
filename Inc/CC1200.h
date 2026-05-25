@@ -22,7 +22,11 @@
 extern "C" {
 #endif
 
+/** 
+ * Change this include to the STM32 HAL include for your specific MCU
+ */
 #include "stm32f7xx_hal.h"
+
 #include "cmsis_os2.h"
 
 #include "CC1200_REG.h"
