@@ -16,8 +16,10 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "CC1200.h"
+#include "CC1200_DEF.h"
+
+#include "CC1200_REG.h"
 #include "CC1200_REG_DEF.h"
-#include <stdint.h>
 
 /* Private typedef -----------------------------------------------------------*/
 
