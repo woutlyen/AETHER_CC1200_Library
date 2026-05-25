@@ -258,8 +258,8 @@ try_again:
             uint8_t rx_buf[to_transmit];
             HAL_SPI_TransmitReceive_DMA(hspi, data + amount_transmitted, rx_buf, to_transmit);
 
-            // Wait until HAL_SPI_TxCpltCallback send flag that the DMA transfer is completed    (Flag 0x00000001U)
-            osThreadFlagsWait(0x00000001U, osFlagsWaitAny, osWaitForever);
+            // Wait until HAL_SPI_TxCpltCallback send flag that the DMA transfer is completed    (SPI_RXTX_CPLT_FLG)
+            osThreadFlagsWait(SPI_RXTX_CPLT_FLG, osFlagsWaitAny, osWaitForever);
 
             HAL_GPIO_WritePin(CSPort, CSPin, GPIO_PIN_SET);  // Set NSS high to end the transaction
 
@@ -401,8 +401,8 @@ uint8_t CC1200_ReceivePayload(uint8_t *buffer, uint8_t length) {
 
             HAL_SPI_TransmitReceive_DMA(hspi, &emptyBuffer[0], buffer + bytes_received, num_rx_bytes);
 
-            // Wait until HAL_SPI_TxRxCpltCallback send flag that the DMA transfer is completed    (Flag 0x00000010U)
-            osThreadFlagsWait(0x00000010U, osFlagsWaitAny, osWaitForever);
+            // Wait until HAL_SPI_TxRxCpltCallback send flag that the DMA transfer is completed    (Flag SPI_RXTX_CPLT_FLG)
+            osThreadFlagsWait(SPI_RXTX_CPLT_FLG, osFlagsWaitAny, osWaitForever);
 
             HAL_GPIO_WritePin(CSPort, CSPin, GPIO_PIN_SET);  // Set NSS high to end the transaction
 
