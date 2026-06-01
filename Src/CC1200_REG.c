@@ -47,7 +47,6 @@ const CC1200_reg_t CC1200_cfg[] = {
 {0x001B,0x12},    //AGC_CFG1          (Automatic Gain Control Configuration Reg. 1)
 {0x001C,0x84},    //AGC_CFG0          (Automatic Gain Control Configuration Reg. 0)
 {0x001D,0x40},    //FIFO_CFG          (FIFO Configuration)
-//{0x001F,0x1B},    //Frequency Synthesizer Calibration and Settling Con..
 {0x0020,0x12},    //FS_CFG            (Frequency Synthesizer Configuration)
 {0x0026,0x00},    //PKT_CFG2          (Packet Configuration Reg. 2)
 {0x0027,0x03},    //PKT_CFG1          (Packet Configuration Reg. 1) //DISABLE CRC
