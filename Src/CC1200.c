@@ -133,13 +133,20 @@ void CC1200_SetTXInterruptFlags(uint32_t pkt_sync_rxtx_fe_flg, uint32_t tx_fifo_
   * @brief  Initializes the CC1200
   * @retval None
   */
-void CC1200_Init(void) {
+void CC1200_Init(CC1200_Config config) {
     // Reset the CC1200
     CC1200_Reset();
 
-    // Initialize the CC1200 with the settings from CC1200_cfg
-    for (uint16_t i = 0; i < CC1200_cfg_size; i++) {
-        CC1200_WriteRegister(CC1200_cfg[i].addr, CC1200_cfg[i].value);
+    if (config == CC1200_867_999878_MHz_4_GFSK_250_KSPS) {
+        // Initialize the CC1200 with the settings from CC1200_867_999878_MHz_4_GFSK_250_KSPS_cfg
+        for (uint16_t i = 0; i < CC1200_867_999878_MHz_4_GFSK_250_KSPS_cfg_size; i++) {
+            CC1200_WriteRegister(CC1200_867_999878_MHz_4_GFSK_250_KSPS_cfg[i].addr, CC1200_867_999878_MHz_4_GFSK_250_KSPS_cfg[i].value);
+        }
+    } else if (config == CC1200_867_999878_MHz_2_GFSK_38_4_KSPS) {
+        // Initialize the CC1200 with the settings from CC1200_867_999878_MHz_2_GFSK_38_4_KSPS_cfg
+        for (uint16_t i = 0; i < CC1200_867_999878_MHz_2_GFSK_38_4_KSPS_cfg_size; i++) {
+            CC1200_WriteRegister(CC1200_867_999878_MHz_2_GFSK_38_4_KSPS_cfg[i].addr, CC1200_867_999878_MHz_2_GFSK_38_4_KSPS_cfg[i].value);
+        }
     }
 
     CC1200_ReadAllRegisters(); // Read back all registers to verify that they have been set correctly

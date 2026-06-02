@@ -49,6 +49,11 @@ extern "C" {
 #define CC1200_STATUS_RESERVED_Msk       (0xF << 0)                         /*!< 0b00001111   Reserved bits in the status byte */
 
 typedef enum {
+    CC1200_867_999878_MHz_4_GFSK_250_KSPS,
+    CC1200_867_999878_MHz_2_GFSK_38_4_KSPS
+} CC1200_Config;
+
+typedef enum {
     CC1200_RX_OFF_MODE_IDLE = 0b00,
     CC1200_RX_OFF_MODE_FSTXON = 0b01,
     CC1200_RX_OFF_MODE_TX = 0b10,
@@ -69,7 +74,7 @@ void CC1200_SetAllInterruptFlags(uint32_t pkt_sync_rxtx_re_flg, uint32_t pkt_syn
 void CC1200_SetRXInterruptFlags(uint32_t pkt_sync_rxtx_re_flg, uint32_t pkt_sync_rxtx_fe_flg, uint32_t rx_fifo_thr_re_flg);
 void CC1200_SetTXInterruptFlags(uint32_t pkt_sync_rxtx_fe_flg, uint32_t tx_fifo_thr_fe_flg);
 
-void CC1200_Init(void);
+void CC1200_Init(CC1200_Config config);
 
 void CC1200_SetRXOffMode(CC1200_RXOffMode mode);
 void CC1200_SetFSAutocal(CC1200_FSAautocal autoccal);

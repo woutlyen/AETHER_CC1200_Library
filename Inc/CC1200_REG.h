@@ -22,8 +22,11 @@ typedef struct {
     uint8_t value;
 } CC1200_reg_t;
 
-extern const CC1200_reg_t CC1200_cfg[];
-extern const uint16_t CC1200_cfg_size;
+extern const CC1200_reg_t CC1200_867_999878_MHz_4_GFSK_250_KSPS_cfg[];
+extern const uint16_t CC1200_867_999878_MHz_4_GFSK_250_KSPS_cfg_size;
+
+extern const CC1200_reg_t CC1200_867_999878_MHz_2_GFSK_38_4_KSPS_cfg[];
+extern const uint16_t CC1200_867_999878_MHz_2_GFSK_38_4_KSPS_cfg_size;
 
 #ifdef __cplusplus
 }
