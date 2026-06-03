@@ -41,9 +41,8 @@
 #include "CC1200_REG.h"
 
 const CC1200_reg_t CC1200_867_999878_MHz_4_GFSK_250_KSPS_cfg[] = {
-{0x0000,0x07},    //IOCFG3            (GPIO3 IO Pin Configuration)
-{0x0001,0x06},    //IOCFG2            (GPIO2 IO Pin Configuration)
-{0x0003,0x00},    //IOCFG0            (GPIO0 IO Pin Configuration)
+{0x0000,0x06},    //IOCFG3            (GPIO3 IO Pin Configuration)
+{0x0001,0x02},    //IOCFG2            (GPIO2 IO Pin Configuration)
 {0x0008,0xA8},    //SYNC_CFG1         (Sync Word Detection Configuration Reg. 1)
 {0x000A,0x47},    //DEVIATION_M       (Frequency Deviation Configuration)
 {0x000B,0x2F},    //MODCFG_DEV_E      (Modulation Format and Frequency Deviation Configur..)
@@ -96,7 +95,8 @@ const CC1200_reg_t CC1200_867_999878_MHz_4_GFSK_250_KSPS_cfg[] = {
 const uint16_t CC1200_867_999878_MHz_4_GFSK_250_KSPS_cfg_size = sizeof(CC1200_867_999878_MHz_4_GFSK_250_KSPS_cfg) / sizeof(CC1200_reg_t);
 
 const CC1200_reg_t CC1200_867_999878_MHz_2_GFSK_38_4_KSPS_cfg[] = {
-{0x0001,0x06},  // IOCFG2              GPIO2 IO Pin Configuration
+{0x0000,0x06},    //IOCFG3            (GPIO3 IO Pin Configuration)
+{0x0001,0x02},    //IOCFG2            (GPIO2 IO Pin Configuration)
 {0x0008,0xA9},  // SYNC_CFG1           Sync Word Detection Configuration Reg. 1
 {0x000B,0x0B},  // MODCFG_DEV_E        Modulation Format and Frequency Deviation Configur..
 {0x000E,0x8A},  // PREAMBLE_CFG0       Preamble Detection Configuration Reg. 0
